@@ -26,6 +26,7 @@ for url in $pages; do
     echo
 
     # LTSV形式で保存
+    echo "url:$url\ttitle:$title\tdate:$date\tcontent:$content" >> contents.ltsv
 
     sleep $wait # 負荷軽減のため1秒sleep
 done
