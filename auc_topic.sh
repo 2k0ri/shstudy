@@ -1,7 +1,7 @@
 #!/bin/bash
 readonly IS_USE_LTSV=0 # 0でLTSV、それ以外でTSV
 readonly CACHE_DIR='cache/' # キャッシュ保存フォルダ(/で終了)
-[ ! -e ${CACHE_DIR} ] && mkdir ${CACHE_DIR}
+CACHE_FILE_FORMAT=${CACHE_DIR}${date}_${slug} # キャッシュファイル名のフォーマット
 
 WAIT=0.1s
 readonly BASEURL='http://aucfan.com/article/'
@@ -29,8 +29,10 @@ echo "URL取得完了"
 echo
 sleep "${WAIT}"
 
-# 記事をwget
+# キャッシュフォルダがなければ作成
+[ ! -e ${CACHE_DIR} ] && mkdir -p ${CACHE_DIR}
 
+# 記事をwget
 IFS=$'\n' # 行単位で分割
 for URL in $PAGES
 do
@@ -43,7 +45,7 @@ do
     content=`echo "${HTML}" | tr -d '\n' | tr -d '\r' | tr -d '\t' | grep -Po "(?<=<br class='wp_social_bookmarking_light_clear' \/>).*(?=<div class=\"social4i\" style=\"height:69px;\">)"`
 
     # ファイル保存
-    echo ${HTML} > ${CACHE_DIR}${date}_${slug}.html
+    echo ${HTML} > ${CACHE_FILE_FORMAT}.html
 
     for arg in date slug title
     do
