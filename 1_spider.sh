@@ -101,5 +101,5 @@ echo "${RECORD_FILE}.${ext}に保存しました"
 
 # DBへインポート
 echo "データベースにインポート..."
-${PWD}/importdb.sh
+${PWD}/2_importdb.sh
 
