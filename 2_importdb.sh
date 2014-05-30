@@ -13,7 +13,7 @@ if [ "${IS_USE_LTSV}" -eq 0 ]; then
 fi
 
 # tsvを流し込み
-mysql -h "${MYSQL_HOST}" -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -A "${MYSQL_DBNAME}" -e "LOAD DATA LOCAL INFILE "\'${tsvfile}\'" INTO TABLE shstudy_auc_topics(date, slug, title, content)"
+mysql -h "${MYSQL_HOST}" -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -A "${MYSQL_DBNAME}" -e "LOAD DATA LOCAL INFILE '${tsvfile}' INTO TABLE shstudy_auc_topics(date, slug, title, content)"
 
 [[ $? ]] && echo "データベースインポート完了"
 [ "${IS_USE_LTSV}" -eq 0 ] && rm ${tsvfile}
