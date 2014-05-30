@@ -1,8 +1,11 @@
 #!/bin/bash
+
+# 設定パラメータ
 readonly IS_USE_LTSV=0 # 0でLTSV、それ以外でTSV
+readonly IS_INITIALIZE=1 # 0で差分のみ取得、それ以外で全取得
 readonly CACHE_DIR='cache/' # キャッシュ保存フォルダ(/で終了)
-WAIT=0.1s
-readonly BASEURL='http://aucfan.com/article/'
+readonly WAIT=0.1s
+
 
 # 拡張子を判別
 ext='ltsv'
@@ -14,16 +17,15 @@ echo
 [ ! -e ${CACHE_DIR} ] && mkdir -p ${CACHE_DIR}
 
 # 記事ページ一覧を引き抜き
-INDEX=`wget -q http://aucfan.com/article/ -O - | grep -Po "(?<=<a class\=\'page-number num\' href\=\'http:\/\/aucfan\.com\/article\/\?paged=)\d+(?='>\d+<\/a>)" | tail -n 1`
+INDEX=`curl -s -o - http://aucfan.com/article/ | grep -Po "(?<=<a class\=\'page-number num\' href\=\'http:\/\/aucfan\.com\/article\/\?paged=)\d+(?='>\d+<\/a>)" | tail -n 1`
 echo 'URL一覧：'
 for (( i = 1; i <= ${INDEX}; i++ )); do
     echo "URL一覧取得 ${i}/${INDEX}..."
-    PAGES=`wget -q http://aucfan.com/article/?paged=$i -O - | grep -Po '(?<=<a href=")http:\/\/aucfan\.com\/article\/.*?\/(?=" class="box_link">)'`
+    PAGES=`curl -s -o - http://aucfan.com/article/?paged=$i | grep -Po '(?<=<a href=")http:\/\/aucfan\.com\/article\/.*?\/(?=" class="box_link">)'`
     echo -e "${PAGES}"
     echo
-    sleep "${WAIT}"
 
-    # 記事をwget
+    # 記事をcurl
     IFS=$'\n' # 行単位で分割
     for URL in $PAGES; do
         slug=`echo "${URL}" | grep -Po '[^\/]*(?=\/$)'`
@@ -32,33 +34,24 @@ for (( i = 1; i <= ${INDEX}; i++ )); do
         CACHE_FILE=`ls "${CACHE_DIR}" | grep "${slug}"`
         IS_EXIST_CACHE=`[ -f "${CACHE_DIR}${CACHE_FILE}" ]`
 
+        WGET_COUNT=0
         if [ -f "${CACHE_DIR}${CACHE_FILE}" ]; then
             echo "キャッシュから読み込み：${slug}"
             HTML=`cat "${CACHE_DIR}${CACHE_FILE}"`
         else
-            echo "wget実行：${URL}"
-            HTML=`wget -q "${URL}" -O -`
+            WGET_COUNT+=1
+            echo "curl実行 ${URL} ..."
+            sleep "${WAIT}"
+            HTML=`curl -s -o - "${URL}"`
         fi
 
+        # パラメータの切り出し
         date=`echo "${HTML}" | grep -Po '(?<=<span class="sep">).*?(?=<\/span>)' | sed -Ee 's/[年月]/\//g' -e 's/日//g' | xargs date +%Y%m%d -d`
         title=`echo "${HTML}" | grep -Po '(?<=<h1 class="entry-title">).*?(?=<\/h1>)'`
         content=`echo "${HTML}" | tr -d '\n' | tr -d '\r' | tr -d '\t' | grep -Po "(?<=<br class='wp_social_bookmarking_light_clear' \/>).*(?=<div class=\"social4i\" style=\"height:69px;\">)"`
 
-        # ファイル保存
-        if [ ! -f "${CACHE_DIR}${CACHE_FILE}" ]; then
-            # キャッシュファイル名のフォーマット
-            CACHE_FILE_FORMAT="${date}_${slug}.html"
-            echo ${HTML} > "${CACHE_DIR}${CACHE_FILE_FORMAT}"
-        fi
-
-        for arg in date slug title; do
-            echo "${arg}:${!arg}"
-        done
-        echo
-
-        # ファイル保存
+        # *tsvファイルにレコードを書き込み
         record=()
-        # IFS=$'\s'
         for arg in date slug title content; do
             if [ "${IS_USE_LTSV}" -eq 0 ]
             then
@@ -67,16 +60,26 @@ for (( i = 1; i <= ${INDEX}; i++ )); do
                 record[${#record[@]}]="${!arg}"
             fi
         done
-
-        # タブ区切りで結合して保存
-        IFS=$'\t'
+        IFS=$'\t' # タブ区切りで結合して保存
         echo "${record[*]}" >> contents."${ext}"
 
-        sleep "${WAIT}" # 負荷軽減のためsleep
+        # HTML保存
+        if [ ! -f "${CACHE_DIR}${CACHE_FILE}" ]; then
+            CACHE_FILE_FORMAT="${date}_${slug}.html" # キャッシュファイル名のフォーマット
+            echo ${HTML} > "${CACHE_DIR}${CACHE_FILE_FORMAT}"
+        fi
+
+        for arg in date slug title; do
+            printf "${arg}:${!arg}\t"
+        done
+        echo $'\n'
     done
+    # １ページすべてキャッシュ済だった場合はクロールを中断、更新完了
+    if [ "${IS_INITIALIZE}" -eq 0 ] && [[ "${WGET_COUNT}" -eq 0 ]]; then
+        echo
+        echo "更新完了"
+        echo
+        break
+    fi
 done
-
 echo "URL取得完了"
-echo
-
-# tsv変換→SQL実行
