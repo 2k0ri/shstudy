@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 設定読み込み
-. ${PWD}/config.sh
+. $(dirname $0)/config.sh
 
 # 拡張子を判別
 ext='ltsv'
@@ -10,7 +10,7 @@ echo "${ext}形式で保存..."
 echo
 
 # キャッシュフォルダがなければ作成
-[ ! -e ${CACHE_DIR} ] && mkdir -p ${CACHE_DIR}
+[ ! -e $(dirname $0)/${CACHE_DIR} ] && mkdir -p 
 
 # 記事ページ一覧を引き抜き
 INDEX=`curl -s -o - http://aucfan.com/article/ | grep -Po "(?<=<a class\=\'page-number num\' href\=\'http:\/\/aucfan\.com\/article\/\?paged=)\d+(?='>\d+<\/a>)" | tail -n 1`
@@ -19,7 +19,7 @@ INDEX=`curl -s -o - http://aucfan.com/article/ | grep -Po "(?<=<a class\=\'page-
 for (( i = 1; i <= ${INDEX}; i++ )); do
     if [[ -n "${URL_FETCH_COUNT}" ]] && [ "${URL_FETCH_COUNT}" -eq 0 ]; then
         echo "URL一覧をキャッシュから取得"
-        PAGES=`cat ${CACHE_DIR}${URL_LIST}`
+        PAGES=`cat $(dirname $0)/${CACHE_DIR}${URL_LIST}`
         i=${INDEX}
     else
         echo "URL一覧取得 ${i}/${INDEX}..."
@@ -35,24 +35,23 @@ for (( i = 1; i <= ${INDEX}; i++ )); do
         slug=`echo "${URL}" | grep -Po '[^\/]*(?=\/$)'`
 
         # URL一覧にない場合はカウントアップして登録
-        if [[ -z `grep "${URL}" "${CACHE_DIR}${URL_LIST}"` ]]; then
-            echo "${URL}" >> "${CACHE_DIR}${URL_LIST}"
+        if [[ -z `grep "${URL}" "$(dirname $0)/${CACHE_DIR}${URL_LIST}"` ]]; then
+            echo "${URL}" >> "$(dirname $0)/${CACHE_DIR}${URL_LIST}"
             URL_FETCH_COUNT+=1
         fi
 
         # レコード登録済の場合は次のURLへ
-        if [[ -n `grep "${slug}" "${RECORD_FILE}.${ext}"` ]]; then
+        if [[ -n `grep "${slug}" "$(dirname $0)/${RECORD_FILE}.${ext}"` ]]; then
             echo "保存済み：${slug}"
             continue
         fi
         # キャッシュ有無の判定
-        CACHE_FILE=`ls "${CACHE_DIR}" | grep "${slug}"`
-        IS_EXIST_CACHE=`[ -f "${CACHE_DIR}${CACHE_FILE}" ]`
+        CACHE_FILE=`ls "$(dirname $0)/${CACHE_DIR}" | grep "${slug}"`
 
         CURL_COUNT=0
-        if [ -f "${CACHE_DIR}${CACHE_FILE}" ]; then
+        if [ -f "$(dirname $0)/${CACHE_DIR}${CACHE_FILE}" ]; then
             echo "キャッシュから読み込み：${slug}"
-            HTML=`cat "${CACHE_DIR}${CACHE_FILE}"`
+            HTML=`cat "$(dirname $0)/${CACHE_DIR}${CACHE_FILE}"`
         else
             CURL_COUNT+=1
             echo "curl実行 ${URL} ..."
@@ -75,12 +74,12 @@ for (( i = 1; i <= ${INDEX}; i++ )); do
             fi
         done
         IFS=$'\t' # タブ区切りで結合して保存
-        echo "${record[*]}" >> "${RECORD_FILE}"."${ext}"
+        echo "${record[*]}" >> "$(dirname $0)/${RECORD_FILE}"."${ext}"
 
         # HTML保存
-        if [ ! -f "${CACHE_DIR}${CACHE_FILE}" ]; then
+        if [ ! -f "$(dirname $0)/${CACHE_DIR}${CACHE_FILE}" ]; then
             CACHE_FILE_FORMAT="${date}_${slug}.html" # キャッシュファイル名のフォーマット
-            echo ${HTML} > "${CACHE_DIR}${CACHE_FILE_FORMAT}"
+            echo ${HTML} > "$(dirname $0)/${CACHE_DIR}${CACHE_FILE_FORMAT}"
         fi
 
         for arg in date slug title; do
@@ -101,5 +100,5 @@ echo "${RECORD_FILE}.${ext}に保存しました"
 
 # DBへインポート
 echo "データベースにインポート..."
-${PWD}/2_importdb.sh
+$(dirname $0)/2_importdb.sh
 
