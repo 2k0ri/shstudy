@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # 設定読み込み
-. ${PWD}/config.sh
+. $(dirname $0)/config.sh
 
-tsvfile="${PWD}/${RECORD_FILE}.tsv"
+tsvfile="$(dirname $0)/${RECORD_FILE}.tsv"
 
 # LTSVモードの時はTSVに変換
 if [ "${IS_USE_LTSV}" -eq 0 ]; then
     echo "TSVに変換します"
-    sed -Ee 's/(date|slug|title|content)://g' ${RECORD_FILE}.ltsv > ${PWD}/_tmp.tsv
-    tsvfile="${PWD}/_tmp.tsv"
+    sed -Ee 's/(date|slug|title|content)://g' $(dirname $0)/${RECORD_FILE}.ltsv > $(dirname $0)/_tmp.tsv
+    tsvfile="$(dirname $0)/_tmp.tsv"
 fi
 
 # tsvを流し込み
